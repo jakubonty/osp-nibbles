@@ -25,7 +25,11 @@
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
 
+#include "gnibbles.h"
 #include "games-controls.h"
+
+extern GSettings *worm_settings[NUMWORMS];
+extern GtkWidget *window;
 
 enum {
   CONFKEY_COLUMN = 0,
@@ -61,6 +65,8 @@ accel_edited_cb (GtkCellRendererAccel *cell,
   GtkTreePath *path;
   GtkTreeIter iter;
   char *conf_key = NULL;
+  gboolean valid = TRUE;
+  int i = 0;
 
   path = gtk_tree_path_new_from_string (path_string);
   if (!path)
@@ -78,9 +84,33 @@ accel_edited_cb (GtkCellRendererAccel *cell,
   if (!conf_key)
     return;
 
+  /* Duplicate key check */
+  for (i = 0; i < NUMWORMS; i++) {
+    if (g_settings_get_int(worm_settings[i], "key-up") == keyval ||
+        g_settings_get_int(worm_settings[i], "key-down") == keyval ||
+        g_settings_get_int(worm_settings[i], "key-left") == keyval ||
+        g_settings_get_int(worm_settings[i], "key-right") == keyval) {
+      valid = FALSE;
+      
+      GtkWidget *dialog;
+
+      window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+      dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+            			GTK_DIALOG_DESTROY_WITH_PARENT,
+		                GTK_MESSAGE_WARNING,
+		                GTK_BUTTONS_OK,
+ 		                "Chosen key already used.", "title");
+      gtk_window_set_title(GTK_WINDOW(dialog), "Warning");
+      gtk_dialog_run(GTK_DIALOG(dialog));
+      gtk_widget_destroy(dialog);
+      break;
+    }
+  }
+
   /* Note: the model is updated in the conf notification callback */
   /* FIXME: what to do with the modifiers? */
-  g_settings_set_int (list->priv->settings, conf_key, keyval);
+  if (valid)
+    g_settings_set_int (list->priv->settings, conf_key, keyval);
   g_free (conf_key);
 }
 
